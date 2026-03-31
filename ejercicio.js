@@ -12,11 +12,10 @@ async function errorHandlingFetch( url ) {
 
 }
 
-async function getUsuario(userId) {
+async function getUser(userId) {
   let user = await errorHandlingFetch(URL + 'users/' + userId)
-  let userName = user.name
-
-  return userName
+  
+  return user.name
 
 }
 
@@ -42,6 +41,16 @@ async function getAlbums(userId) {
     })
     return processedAlbums
   })
+
+  // Version 3: 
+  // ============================================================================================================
+  // Si hacemos await Promise.all() en lugar de return Promise.all() ¿se está perdiendo paralelismo de ejecucion?
+  // ¿o igualmente se van las promesas al callback queu?
+  // ============================================================================================================
+  // let processedAlbums = {}
+  // await Promise.all(photos)
+  // photos.forEach((photo, index) => processedAlbums[albumsTitles[index]] = photo)
+  // return processedAlbums
 }
 
 async function getPhotos(albumId) {
@@ -55,11 +64,11 @@ async function getPhotos(albumId) {
 
 function getUserAlbumsAndPhotos(userId) {
 
-  return Promise.all([getUsuario(userId), getAlbums(userId)])
-    .then((result) => {
+  return Promise.all([getUser(userId), getAlbums(userId)])
+    .then(([name, albums]) => {
       return {
-        'name': result[0],
-        'albums': result[1]
+        name,
+        'albums': albums
       }
     })
 
