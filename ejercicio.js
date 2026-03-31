@@ -1,30 +1,72 @@
 const URL = 'https://jsonplaceholder.typicode.com/'
 
-async function getUsuario(id) {
-  let res = await fetch(URL + 'users/' + id)
-  let user = await res.json()
+async function errorHandlingFetch( url ) {
+  try {
+    let res = await fetch(url)
+    if (!res.ok) throw new Error(`Http request to ${url} did not return response code in range 200-299.\nResponse code ${res.status}`)
+    return await res.json()
+
+  } catch (error) {
+    throw error
+  }
+
+}
+
+async function getUsuario(userId) {
+  let user = await errorHandlingFetch(URL + 'users/' + userId)
   let userName = user.name
 
-  let albums = await getAlbums(id)
+  return userName
 
-  return {
-    userName,
-    albums
-  }
 }
 
-async function getAlbums(id) {
-  let res = await fetch(URL + 'users/' + id + '/albums')
-  let albums = await res.json()
+async function getAlbums(userId) {
+  let albumsRaw = await errorHandlingFetch(URL + 'users/' + userId + '/albums')
 
-  let albumsTitles = []
+  let albumsTitles = albumsRaw.map(album => album.title)
 
-  albums.forEach(album => {
-    albumsTitles.push(album.title)
+  let photos = albumsRaw.map(album => getPhotos(album.id))
+
+  // Version 1: devolviendo array [ { album: photos[] }, {...} ]
+  // return Promise.all(photos).then(res => {
+  //   return res.map((photo, index) => {
+  //     return { [albumsTitles[index]]: photo }
+  //   })
+  // })
+
+  // Version 2: devolviendo objeto { album : photos[], ... }
+  return Promise.all(photos).then(res => {
+    let processedAlbums = {}
+    res.forEach((photo, index) => {
+      processedAlbums[albumsTitles[index]] = photo
+    })
+    return processedAlbums
   })
-
-  return albumsTitles
 }
 
-const resultado = await getUsuario(1)
-console.log(resultado)
+async function getPhotos(albumId) {
+
+  let photos = await errorHandlingFetch(URL + 'albums/' + albumId + '/photos')
+  let photosTitles = photos.map(photo => photo.title)
+
+  return photosTitles
+}
+
+
+function getUserAlbumsAndPhotos(userId) {
+
+  return Promise.all([getUsuario(userId), getAlbums(userId)])
+    .then((result) => {
+      return {
+        'name': result[0],
+        'albums': result[1]
+      }
+    })
+
+}
+
+
+let result =  await getUserAlbumsAndPhotos(1)
+
+console.log(result)
+
