@@ -48,7 +48,7 @@ async function getAlbums(userId) {
   // ¿o igualmente se van las promesas al callback queu?
   // ============================================================================================================
   // let processedAlbums = {}
-  // await Promise.all(photos)
+  // photos = await Promise.all(photos)
   // photos.forEach((photo, index) => processedAlbums[albumsTitles[index]] = photo)
   // return processedAlbums
 }
