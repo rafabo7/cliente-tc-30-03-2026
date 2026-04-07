@@ -1,20 +1,26 @@
+
+import { inspect } from 'util'
 const URL = 'https://jsonplaceholder.typicode.com/'
 
-async function errorHandlingFetch( url ) {
-  try {
+// Import mockFetch from module
+import mockFetch from './mockFetch.js'
+// To use the mock, uncomment the following line:
+globalThis.fetch = mockFetch
+
+
+async function errorHandlingFetch(url) {
+
+
     let res = await fetch(url)
     if (!res.ok) throw new Error(`Http request to ${url} did not return response code in range 200-299.\nResponse code ${res.status}`)
     return await res.json()
 
-  } catch (error) {
-    throw error
-  }
-
 }
 
 async function getUser(userId) {
+
   let user = await errorHandlingFetch(URL + 'users/' + userId)
-  
+
   return user.name
 
 }
@@ -26,31 +32,15 @@ async function getAlbums(userId) {
 
   let photos = albumsRaw.map(album => getPhotos(album.id))
 
-  // Version 1: devolviendo array [ { album: photos[] }, {...} ]
-  // return Promise.all(photos).then(res => {
-  //   return res.map((photo, index) => {
-  //     return { [albumsTitles[index]]: photo }
-  //   })
-  // })
-
-  // Version 2: devolviendo objeto { album : photos[], ... }
-  return Promise.all(photos).then(res => {
-    let processedAlbums = {}
-    res.forEach((photo, index) => {
-      processedAlbums[albumsTitles[index]] = photo
-    })
-    return processedAlbums
+  photos = await Promise.all(photos)
+  let processedAlbums = albumsTitles.map((title, index) => {
+    return {
+      title,
+      photos: photos[index]
+    }
   })
+  return processedAlbums
 
-  // Version 3: 
-  // ============================================================================================================
-  // Si hacemos await Promise.all() en lugar de return Promise.all() ¿se está perdiendo paralelismo de ejecucion?
-  // ¿o igualmente se van las promesas al callback queu?
-  // ============================================================================================================
-  // let processedAlbums = {}
-  // photos = await Promise.all(photos)
-  // photos.forEach((photo, index) => processedAlbums[albumsTitles[index]] = photo)
-  // return processedAlbums
 }
 
 async function getPhotos(albumId) {
@@ -61,21 +51,26 @@ async function getPhotos(albumId) {
   return photosTitles
 }
 
+async function getUserAlbumsAndPhotos(userId) {
 
-function getUserAlbumsAndPhotos(userId) {
+  const [name, albums] = await Promise.all([getUser(userId), getAlbums(userId)])
 
-  return Promise.all([getUser(userId), getAlbums(userId)])
-    .then(([name, albums]) => {
-      return {
-        name,
-        'albums': albums
-      }
-    })
+  return {
+    name,
+    albums
+  }
+}
 
+//-----------------------------
+
+try {
+  let result = await getUserAlbumsAndPhotos(1)
+  console.log(inspect(result, { depth: null }))
+
+} catch (error) {
+  console.log('No se han podido obtener los datos')
+  console.log(error)
 }
 
 
-let result =  await getUserAlbumsAndPhotos(1)
-
-console.log(result)
 
