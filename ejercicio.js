@@ -7,35 +7,53 @@ import mockFetch from './mockFetch.js'
 // To use the mock, uncomment the following line:
 globalThis.fetch = mockFetch
 
+const INFO_LOG = []
+const ERRORMSG = 'ERROR'
+
 
 async function errorHandlingFetch(url) {
 
+  let result = {
+    success: false,
+    data: null
+  }
 
+  try {
     let res = await fetch(url)
-    if (!res.ok) throw new Error(`Http request to ${url} did not return response code in range 200-299.\nResponse code ${res.status}`)
-    return await res.json()
+    if (!res.ok) {
+      throw new Error(`Http request to ${url} failed, respose code not in 200-299. Current response code ${res.status}`)
+    }
+    result.data = await res.json()
+    result.success = true
+
+  } catch (error) {
+    INFO_LOG.push(error)
+  }
+  return result
 
 }
 
 async function getUser(userId) {
 
-  let user = await errorHandlingFetch(URL + 'users/' + userId)
-
-  return user.name
+  let { data: userData, success } = await errorHandlingFetch(URL + 'users/' + userId)
+  return success
+    ? userData.name
+    : ERRORMSG
 
 }
 
 async function getAlbums(userId) {
-  let albumsRaw = await errorHandlingFetch(URL + 'users/' + userId + '/albums')
+  let { data: albumsData, success } = await errorHandlingFetch(URL + 'users/' + userId + '/albums')
 
-  let albumsTitles = albumsRaw.map(album => album.title)
+  if (!success) return ERRORMSG
 
-  let photos = albumsRaw.map(album => getPhotos(album.id))
+  let photos = albumsData.map(album => getPhotos(album.id))
 
   photos = await Promise.all(photos)
-  let processedAlbums = albumsTitles.map((title, index) => {
+
+  let processedAlbums = albumsData.map((item, index) => {
     return {
-      title,
+      title: item.title,
       photos: photos[index]
     }
   })
@@ -45,32 +63,31 @@ async function getAlbums(userId) {
 
 async function getPhotos(albumId) {
 
-  let photos = await errorHandlingFetch(URL + 'albums/' + albumId + '/photos')
-  let photosTitles = photos.map(photo => photo.title)
-
-  return photosTitles
+  let { data: photosData, success } = await errorHandlingFetch(URL + 'albums/' + albumId + '/photos')
+  return success
+    ? photosData.map(photo => photo.title)
+    : ERRORMSG
 }
 
 async function getUserAlbumsAndPhotos(userId) {
+  
 
   const [name, albums] = await Promise.all([getUser(userId), getAlbums(userId)])
+  const errors = INFO_LOG.map(item => item)
+  INFO_LOG.length = 0
 
   return {
-    name,
-    albums
+    data: {
+      name,
+      albums,
+    },
+    errors
   }
 }
 
 //-----------------------------
 
-try {
-  let result = await getUserAlbumsAndPhotos(1)
-  console.log(inspect(result, { depth: null }))
 
-} catch (error) {
-  console.log('No se han podido obtener los datos')
-  console.log(error)
-}
+let result = await getUserAlbumsAndPhotos(3)
 
-
-
+console.log(inspect(result, { depth: null }))
